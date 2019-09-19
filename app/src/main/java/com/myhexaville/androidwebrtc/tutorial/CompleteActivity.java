@@ -86,7 +86,16 @@ public class CompleteActivity extends AppCompatActivity {
 
     @AfterPermissionGranted(RC_CALL)
     private void start() {
-        String[] perms = {Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO};
+      String[] perms = {
+              Manifest.permission.CAMERA,
+              Manifest.permission.CHANGE_NETWORK_STATE,
+              Manifest.permission.MODIFY_AUDIO_SETTINGS,
+              Manifest.permission.RECORD_AUDIO,
+              Manifest.permission.INTERNET,
+              Manifest.permission.WRITE_EXTERNAL_STORAGE,
+              Manifest.permission.ACCESS_NETWORK_STATE,
+              Manifest.permission.BLUETOOTH
+      };
         if (EasyPermissions.hasPermissions(this, perms)) {
             connectToSignallingServer();
 

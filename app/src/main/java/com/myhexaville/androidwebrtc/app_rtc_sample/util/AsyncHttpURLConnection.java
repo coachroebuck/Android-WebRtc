@@ -13,10 +13,21 @@ package com.myhexaville.androidwebrtc.app_rtc_sample.util;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.HttpURLConnection;
 import java.net.SocketTimeoutException;
 import java.net.URL;
+import java.security.KeyManagementException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.Scanner;
+
+import javax.net.ssl.HostnameVerifier;
+import javax.net.ssl.HttpsURLConnection;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 /**
  * Asynchronous http requests implementation.
@@ -57,11 +68,42 @@ public class AsyncHttpURLConnection {
 
     private void sendHttpMessage() {
         try {
-            HttpURLConnection connection = (HttpURLConnection) new URL(url).openConnection();
+
+            HostnameVerifier hostnameVerifier = (String hostname, SSLSession session) -> {
+//                HostnameVerifier hv =
+//                        HttpsURLConnection.getDefaultHostnameVerifier();
+                return true;    //hv.verify("appr.tc", session);
+            };
+
+//            HttpsURLConnection.setDefaultHostnameVerifier(hostnameVerifier);
+            final SSLContext context = SSLContext.getInstance("TLS");
+            TrustManager[] trustManagers = {
+                    new X509TrustManager(){
+                        @Override
+                        public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+
+                        }
+
+                        @Override
+                        public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+
+                        }
+
+                        @Override public X509Certificate[] getAcceptedIssuers() {
+                            return new X509Certificate[0];
+                        }
+                    }
+            };
+            context.init(null, trustManagers, new SecureRandom());
+            HttpsURLConnection.setDefaultSSLSocketFactory(context.getSocketFactory());
+
+            HttpsURLConnection connection = (HttpsURLConnection) new URL(url).openConnection();
+
             byte[] postData = new byte[0];
             if (message != null) {
                 postData = message.getBytes("UTF-8");
             }
+            connection.setHostnameVerifier(hostnameVerifier);
             connection.setRequestMethod(method);
             connection.setUseCaches(false);
             connection.setDoInput(true);
@@ -101,8 +143,10 @@ public class AsyncHttpURLConnection {
             responseStream.close();
             connection.disconnect();
             events.onHttpComplete(response);
-        } catch (SocketTimeoutException e) {
+        } catch (SocketTimeoutException | KeyManagementException e) {
             events.onHttpError("HTTP " + method + " to " + url + " timeout");
+        } catch (NoSuchAlgorithmException e) {
+            events.onHttpError("HTTP " + method + " to " + url + " no such algorithm");
         } catch (IOException e) {
             events.onHttpError("HTTP " + method + " to " + url + " error: " + e.getMessage());
         }
