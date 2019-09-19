@@ -45,6 +45,11 @@ public class DataChannelActivity extends AppCompatActivity {
     private DataChannel localDataChannel;
     private ImagePicker imagePicker;
 
+    int incomingTextSize = 0;
+    byte[] textBytes;
+    boolean receivingText = false;
+    int currentTextIndexPointer = 0;
+
     int incomingFileSize;
     int currentIndexPointer;
     byte[] imageFileBytes;
@@ -114,9 +119,46 @@ public class DataChannelActivity extends AppCompatActivity {
 
             @Override
             public void onMessage(DataChannel.Buffer buffer) {
-
+                Log.d(TAG, "onMessage: received text message");
+                readIncomingTextMessage(buffer.data);
             }
         });
+    }
+
+    private void readIncomingTextMessage(ByteBuffer buffer) {
+        byte[] bytes;
+
+        if (buffer.hasArray()) {
+            bytes = buffer.array();
+        } else {
+            bytes = new byte[buffer.remaining()];
+            buffer.get(bytes);
+        }
+        if (!receivingFile) {
+            String firstMessage = new String(bytes, Charset.defaultCharset());
+            String type = firstMessage.substring(0, 2);
+            Log.d(TAG, "readIncomingTextMessage: firstMessage=" + firstMessage);
+
+            if (type.equals("-i")) {
+                incomingTextSize = Integer.parseInt(firstMessage.substring(2, firstMessage.length()));
+                textBytes = new byte[incomingTextSize];
+                Log.d(TAG, "readIncomingTextMessage: incoming file size " + incomingTextSize);
+                receivingText = true;
+            } else if (type.equals("-s")) {
+                runOnUiThread(() -> binding.remoteText.setText(firstMessage.substring(2, firstMessage.length())));
+            }
+        } else {
+            for (byte b : bytes) {
+                textBytes[currentTextIndexPointer++] = b;
+            }
+            if (currentTextIndexPointer == incomingTextSize) {
+                Log.d(TAG, "readIncomingTextMessage: received all bytes");
+                String incomingMessage = new String(textBytes, Charset.defaultCharset());
+                Log.d(TAG, "readIncomingTextMessage: incomingMessage=" + incomingMessage);
+                receivingText = false;
+                currentTextIndexPointer = 0;
+            }
+        }
     }
 
     private void connectToOtherPeer() {
